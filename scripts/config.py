@@ -28,7 +28,7 @@ import sys
 
 __all__ = ['coordinator_port', 'default_disk1','default_disk2', 'git_branch',
            'git_ref', 'git_diff', 'hosts', 'obj_dir', 'obj_path', 'scripts_path',
-           'second_backup_port', 'server_port', 'top_path']
+           'remote_wd', 'second_backup_port', 'server_port', 'top_path']
 
 # git_branch is the name of the current git branch, which is used
 # for purposes such as computing objDir.
@@ -66,6 +66,10 @@ else:
 
 # The full path name of the directory containing this script file.
 scripts_path = os.path.dirname(os.path.abspath(__file__))
+
+# The full path of the working directory for remoteexec.py.
+# If the remote directory is different from this current dir, override the setting.
+remote_wd = os.getcwd()
 
 # The full pathname of the parent of scriptsPath (the top-level directory
 # of a RAMCloud source tree).

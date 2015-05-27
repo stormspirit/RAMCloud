@@ -93,13 +93,13 @@ class Sandbox(object):
                 # Assumes scripts are at same path on remote machine
                 sh_command = ['ssh', host,
                               '%s/serverexec' % scripts_path,
-                              host, os.getcwd(), "'%s'" % locator,
+                              host, remote_wd, "'%s'" % locator,
                               "'%s'" % command]
             else:
                 # Assumes scripts are at same path on remote machine
                 sh_command = ['ssh', host,
                               '%s/regexec' % scripts_path, sonce,
-                              os.getcwd(), "'%s'" % command]
+                              remote_wd, "'%s'" % command]
 
             p = subprocess.Popen(sh_command, **kwargs)
             process = self.Process(host, command, kwargs, sonce,
@@ -111,7 +111,7 @@ class Sandbox(object):
         else:
             sh_command = ['ssh', host,
                           '%s/remoteexec.py' % scripts_path,
-                          "'%s'" % command, os.getcwd()]
+                          "'%s'" % command, remote_wd]
             subprocess.check_call(sh_command, **kwargs)
             return None
 
@@ -151,7 +151,7 @@ class Sandbox(object):
                     to_kill = '0'
                     killers.append(subprocess.Popen(['ssh', p.host,
                                         '%s/killserver' % scripts_path,
-                                        to_kill, os.getcwd(), p.host]))
+                                        to_kill, remote_wd, p.host]))
                 # invoke killpid only for processes that are not servers.
                 # server processes will be killed by killserver outside this
                 # loop below.
@@ -180,7 +180,7 @@ class Sandbox(object):
                         to_kill = '1'
                         killers.append(subprocess.Popen(['ssh', mhost.split('_')[0],
                                             '%s/killserver' % scripts_path,
-                                            to_kill, os.getcwd(), mhost]))
+                                            to_kill, remote_wd, mhost]))
                 try:
                     os.remove('%s/logs/shm/README' % os.getcwd())
                     # remove the file that represents the name of the cluster.
