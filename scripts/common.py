@@ -27,6 +27,8 @@ import time
 
 __all__ = ['sh', 'captureSh', 'Sandbox', 'getDumpstr']
 
+debugSH = True
+
 def sh(command, bg=False, **kwargs):
     """Execute a local command."""
 
@@ -103,7 +105,8 @@ class Sandbox(object):
                               remote_wd, "'%s'" % command]
             self.sush_command(sudo, sh_command)
 
-            print sh_command
+            if debugSH:
+              print sh_command
 
             p = subprocess.Popen(sh_command, **kwargs)
             process = self.Process(host, command, kwargs, sonce,
@@ -118,6 +121,8 @@ class Sandbox(object):
                           "'%s'" % command, remote_wd]
             self.sush_command(sudo, sh_command)
 
+            if debugSH:
+              print sh_command
             subprocess.check_call(sh_command, **kwargs)
             return None
 
@@ -135,6 +140,8 @@ class Sandbox(object):
         sh_command = ['ssh', process.host, 
                         '%s/killpid' % scripts_path, process.sonce]
         self.sush_command(process.sudo, sh_command)
+        if debugSH:
+          print sh_command
 
         killer = subprocess.Popen(sh_command)
         killer.wait()
@@ -166,6 +173,8 @@ class Sandbox(object):
                                     '%s/killserver' % scripts_path,
                                         to_kill, remote_wd, p.host]
                     self.sush_command(p.sudo, sh_command)
+                    if debugSH:
+                      print sh_command
                     killers.append(subprocess.Popen(sh_command))
                 # invoke killpid only for processes that are not servers.
                 # server processes will be killed by killserver outside this
@@ -175,6 +184,8 @@ class Sandbox(object):
                     sh_command = ['ssh', p.host,
                                     '%s/killpid' % scripts_path, p.sonce]
                     self.sush_command(p.sudo, sh_command)
+                    if debugSH:
+                      print sh_command
                     killers.append(subprocess.Popen(sh_command))
 
             if self.cleanup:
@@ -182,6 +193,8 @@ class Sandbox(object):
                 sh_command = ['ssh', chost[0],
                                 '%s/killcoord' % scripts_path]
                 self.sush_command(False, sh_command)
+                if debugSH:
+                  print sh_command
                 killers.append(subprocess.Popen(sh_command))
 
                 path = '%s/logs/shm' % os.getcwd()
@@ -200,6 +213,8 @@ class Sandbox(object):
                                             '%s/killserver' % scripts_path,
                                             to_kill, remote_wd, mhost]
                         self.sush_command(p.sudo, sh_command)
+                        if debugSH:
+                          print sh_command
                         killers.append(subprocess.Popen(sh_command))
                 try:
                     os.remove('%s/logs/shm/README' % os.getcwd())
