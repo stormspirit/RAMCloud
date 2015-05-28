@@ -173,6 +173,7 @@ def run_test(
     """
     cluster_args = {
         'debug':       options.debug,
+        'need_sudo':   options.needRoot,
         'log_dir':     options.log_dir,
         'log_level':   options.log_level,
         'backups_per_server': options.backups_per_server,
@@ -655,6 +656,8 @@ if __name__ == '__main__':
     parser.add_option('--debug', action='store_true', default=False,
             help='Pause after starting servers but before running '
                  'clients to enable debugging setup')
+    parser.add_option('--needRoot', action='store_true', default=False,
+            help='Require sudo to start server and coordinator ')
     parser.add_option('-d', '--logDir', default='logs', metavar='DIR',
             dest='log_dir',
             help='Top level directory for log files; the files for '

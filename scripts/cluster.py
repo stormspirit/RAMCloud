@@ -152,7 +152,7 @@ class Cluster(object):
     """
 
     def __init__(self, log_dir='logs', log_exists=False,
-                    cluster_name_exists=False):
+                    cluster_name_exists=False, need_sudo=False):
         """
         @param log_dir: Top-level directory in which to write log files.
                         A separate subdirectory will be created in this
@@ -178,6 +178,7 @@ class Cluster(object):
         self.replicas = 3
         self.disk = default_disk1
         self.disjunct = False
+        self.need_sudo = need_sudo
 
         if cluster_name_exists: # do nothing if it exists
             self.cluster_name = None
@@ -252,7 +253,7 @@ class Cluster(object):
                  self.coordinator_host[0], args))
 
             self.coordinator = self.sandbox.rsh(self.coordinator_host[0],
-                        command, bg=True, stderr=subprocess.STDOUT)
+                        command, bg=True, sudo=self.need_sudo, stderr=subprocess.STDOUT)
         else:
             # currently hardcoding logcabin server because ankita's logcabin
             # scripts are not on git.
@@ -265,7 +266,7 @@ class Cluster(object):
                  self.coordinator_host[0], args))
 
             self.coordinator = self.sandbox.rsh(self.coordinator_host[0],
-                        command, bg=True, stderr=subprocess.STDOUT)
+                        command, bg=True, sudo=self.need_sudo, stderr=subprocess.STDOUT)
 
             # just wait for coordinator to start
             time.sleep(1)
@@ -278,6 +279,7 @@ class Cluster(object):
 
             restarted_coord = self.sandbox.rsh(self.coordinator_host[0],
                         restart_command, kill_on_exit=True, bg=True,
+                        sudo=self.need_sudo, 
                         stderr=subprocess.STDOUT)
 
         self.ensure_servers(0, 0)
@@ -359,6 +361,7 @@ class Cluster(object):
                                       locator=server_locator(self.transport,
                                                              host, port),
                                       kill_on_exit=False, bg=True,
+                                      sudo=self.need_sudo, 
                                       stdout=stdout,
                                       stderr=stderr)
         else:
@@ -366,6 +369,7 @@ class Cluster(object):
                                       locator=server_locator(self.transport,
                                                              host, port),
                                       bg=True,
+                                      sudo=self.need_sudo, 
                                       stdout=stdout,
                                       stderr=stderr)
 
@@ -577,7 +581,8 @@ def run(
         valgrind=False,		   # Do not run under valgrind
         valgrind_args='',	   # Additional arguments for valgrind
         disjunct=False,            # Disjunct entities on a server
-        coordinator_host=None
+        coordinator_host=None,
+        need_sudo=False,     # Whether need sudo to execute server and coordinator
         ):       
     """
     Start a coordinator and servers, as indicated by the arguments.
@@ -627,6 +632,7 @@ def run(
         cluster.enable_logcabin = enable_logcabin
         cluster.disjunct = disjunct
         cluster.hosts = hosts
+        cluster.need_sudo = need_sudo
 
         if not coordinator_host:
             coordinator_host = cluster.hosts[0]

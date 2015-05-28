@@ -54,7 +54,7 @@ class Sandbox(object):
     """A context manager for launching and cleaning up remote processes."""
     class Process(object):
         def __init__(self, host, command, kwargs, sonce, proc,
-                     ignoreFailures, kill_on_exit, server_process):
+                     ignoreFailures, kill_on_exit, server_process, sudo):
 
             self.host = host
             self.command = command
@@ -64,6 +64,7 @@ class Sandbox(object):
             self.ignoreFailures = ignoreFailures
             self.kill_on_exit = kill_on_exit
             self.server_process = server_process
+            self.sudo = sudo
 
         def __repr__(self):
             return repr(self.__dict__)
@@ -76,7 +77,7 @@ class Sandbox(object):
         self.cleanup = cleanup
 
     def rsh(self, host, command, locator=None, ignoreFailures=False,
-            is_server=False, kill_on_exit=True, bg=False, **kwargs):
+            is_server=False, kill_on_exit=True, bg=False, sudo=False, **kwargs):
 
         """Execute a remote command.
 
@@ -100,11 +101,14 @@ class Sandbox(object):
                 sh_command = ['ssh', host,
                               '%s/regexec' % scripts_path, sonce,
                               remote_wd, "'%s'" % command]
+            self.sush_command(sudo, sh_command)
+
+            print sh_command
 
             p = subprocess.Popen(sh_command, **kwargs)
             process = self.Process(host, command, kwargs, sonce,
                                    p, ignoreFailures, kill_on_exit,
-                                   server_process)
+                                   server_process, sudo)
 
             self.processes.append(process)
             return process
@@ -112,8 +116,15 @@ class Sandbox(object):
             sh_command = ['ssh', host,
                           '%s/remoteexec.py' % scripts_path,
                           "'%s'" % command, remote_wd]
+            self.sush_command(sudo, sh_command)
+
             subprocess.check_call(sh_command, **kwargs)
             return None
+
+    def sush_command(self, sudo, sh_command):
+        if sudo:
+            sh_command[2] = 'sudo %s' %(sh_command[2]) # add sudo
+            sh_command.insert(1, '-t') # create a tty for askpass
 
     def kill(self, process):
         """Kill a remote process started with rsh().
@@ -121,9 +132,11 @@ class Sandbox(object):
         @param process: A Process corresponding to the command to kill which
                         was created with rsh().
         """
-        killer = subprocess.Popen(['ssh', process.host,
-                                   '%s/killpid' % scripts_path,
-                                    process.sonce])
+        sh_command = ['ssh', process.host, 
+                        '%s/killpid' % scripts_path, process.sonce]
+        self.sush_command(process.sudo, sh_command)
+
+        killer = subprocess.Popen(sh_command)
         killer.wait()
         try:
             process.proc.kill()
@@ -134,7 +147,7 @@ class Sandbox(object):
 
     def restart(self, process):
         self.kill(process)
-        self.rsh(process.host, process.command, process.ignoreFailures, True, **process.kwargs)
+        self.rsh(process.host, process.command, process.ignoreFailures, True, process.sudo, **process.kwargs)
 
     def __enter__(self):
         return self
@@ -149,22 +162,27 @@ class Sandbox(object):
                 # object in whose context, this object was created.
                 if not self.cleanup:
                     to_kill = '0'
-                    killers.append(subprocess.Popen(['ssh', p.host,
-                                        '%s/killserver' % scripts_path,
-                                        to_kill, remote_wd, p.host]))
+                    sh_command = ['ssh', p.host,
+                                    '%s/killserver' % scripts_path,
+                                        to_kill, remote_wd, p.host]
+                    self.sush_command(p.sudo, sh_command)
+                    killers.append(subprocess.Popen(sh_command))
                 # invoke killpid only for processes that are not servers.
                 # server processes will be killed by killserver outside this
                 # loop below.
                 elif not p.server_process:
                     # Assumes scripts are at same path on remote machine
-                    killers.append(subprocess.Popen(['ssh', p.host,
-                                                     '%s/killpid' % scripts_path,
-                                                     p.sonce]))
+                    sh_command = ['ssh', p.host,
+                                    '%s/killpid' % scripts_path, p.sonce]
+                    self.sush_command(p.sudo, sh_command)
+                    killers.append(subprocess.Popen(sh_command))
 
             if self.cleanup:
                 chost = hosts[0] # coordinator
-                killers.append(subprocess.Popen(['ssh', chost[0],
-                                    '%s/killcoord' % scripts_path]))
+                sh_command = ['ssh', chost[0],
+                                '%s/killcoord' % scripts_path]
+                self.sush_command(False, sh_command)
+                killers.append(subprocess.Popen(sh_command))
 
                 path = '%s/logs/shm' % os.getcwd()
                 files = ""
@@ -178,9 +196,11 @@ class Sandbox(object):
                 for mhost in files:
                     if mhost != 'README' and not mhost.startswith("cluster"):
                         to_kill = '1'
-                        killers.append(subprocess.Popen(['ssh', mhost.split('_')[0],
+                        sh_command = ['ssh', mhost.split('_')[0],
                                             '%s/killserver' % scripts_path,
-                                            to_kill, remote_wd, mhost]))
+                                            to_kill, remote_wd, mhost]
+                        self.sush_command(p.sudo, sh_command)
+                        killers.append(subprocess.Popen(sh_command))
                 try:
                     os.remove('%s/logs/shm/README' % os.getcwd())
                     # remove the file that represents the name of the cluster.
