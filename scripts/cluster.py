@@ -152,7 +152,7 @@ class Cluster(object):
     """
 
     def __init__(self, log_dir='logs', log_exists=False,
-                    cluster_name_exists=False, need_sudo=False):
+                    cluster_name_exists=False, need_sudo=False, clean_up=True):
         """
         @param log_dir: Top-level directory in which to write log files.
                         A separate subdirectory will be created in this
@@ -171,6 +171,14 @@ class Cluster(object):
                         using the same cluster name will read data from the
                         replicas
                         (default: False)
+        @param need_sudo:
+                        Indicates whether sudo is needed for managing the servers
+                        (default: False)
+        @param clean_up:
+                        Indicates whether to clean up the started processes or not
+                        (default: True)
+
+
         """
         self.log_level = 'NOTICE'
         self.verbose = False
@@ -205,7 +213,7 @@ class Cluster(object):
         # Create a perfcounters directory under the log directory.
         os.mkdir(self.log_subdir + '/perfcounters')
         if not log_exists:
-            self.sandbox = Sandbox()
+            self.sandbox = Sandbox(clean_up) # when log does not exist, obey the clean up option
         else:
             self.sandbox = Sandbox(cleanup=False)
         # create the shm directory to store shared files
@@ -521,6 +529,35 @@ class Cluster(object):
         self.remove_empty_files()
         return False # rethrow exception, if any
 
+def stop(
+        log_dir='logs',            # Top-level directory in which to write
+                                   # log files.  A separate subdirectory
+                                   # will be created in this directory
+                                   # for the log files from this run.
+        ):
+    path = '%s/logs/shm' % os.getcwd()
+    files = ""
+    try:
+      files = sorted([f for f in os.listdir(path)
+        if os.path.isfile( os.path.join(path, f) )])
+    except:
+      pass
+    killers = []
+    chost = hosts[0]
+    sh_command = ['ssh', chost[0], '%s/killcoord' % scripts_path]
+    print ('Kill coordinator: %s'%(str(sh_command)))
+    killers.append(subprocess.Popen(sh_command))
+    for mhost in files:
+      if mhost != 'README' and not mhost.startswith("cluster"):
+        to_kill = '1'
+        sh_command = ['ssh', mhost.split('_')[0],
+            '%s/killserver' % scripts_path, to_kill, remote_wd, mhost]
+        print ('Kill server: %s' %(str(sh_command)))
+        killers.append(subprocess.Popen(sh_command))
+    for killer in killers:
+      killer.wait()
+    print ('Successfully reaped the cluster')
+
 def run(
         num_servers=4,             # Number of hosts on which to start
                                    # servers (not including coordinator).
@@ -583,16 +620,17 @@ def run(
         disjunct=False,            # Disjunct entities on a server
         coordinator_host=None,
         need_sudo=False,     # Whether need sudo to execute server and coordinator
-        ):       
+        clean_up=True,       # Whether to clean up the server/coordinator processes
+        ):
     """
     Start a coordinator and servers, as indicated by the arguments.
     Then start one or more client processes and wait for them to complete.
     @return: string indicating the path to the log files for this run.
     """
 
-    if not client:
-        raise Exception('You must specify a client binary to run '
-                        '(try obj.master/client)')
+    # if not client:
+    #    raise Exception('You must specify a client binary to run '
+    #                    '(try obj.master/client)')
 
     if verbose:
         print('num_servers=(%d), available hosts=(%d) defined in config.py'
@@ -622,7 +660,7 @@ def run(
     if valgrind:
         valgrind_command = ('valgrind %s' % valgrind_args)
 
-    with Cluster(log_dir) as cluster:
+    with Cluster(log_dir, clean_up=clean_up) as cluster:
         cluster.log_level = log_level
         cluster.verbose = verbose
         cluster.transport = transport
@@ -642,6 +680,7 @@ def run(
             cluster.hosts.pop(0)
 
         if old_master_host:
+            print('starting old master host')
             oldMaster = cluster.start_server(old_master_host,
                                              old_master_args,
                                              backup=False)
