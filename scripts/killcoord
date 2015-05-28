@@ -11,4 +11,7 @@ then
         kill $pid_2 2>/dev/null
     done
     rm -f $pidfile_coord
+else
+    # when the pid file does not exist, we kill all coordinator processes..
+    pkill coordinator
 fi
