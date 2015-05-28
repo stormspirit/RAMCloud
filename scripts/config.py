@@ -71,6 +71,10 @@ scripts_path = os.path.dirname(os.path.abspath(__file__))
 # If the remote directory is different from this current dir, override the setting.
 remote_wd = os.getcwd()
 
+# Zookeeper node that is used to store cluster information
+zookeeper_host = None
+zookeeper_port = 2181
+
 # The full pathname of the parent of scriptsPath (the top-level directory
 # of a RAMCloud source tree).
 top_path = os.path.abspath(scripts_path + '/..')
