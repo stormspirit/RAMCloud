@@ -20,9 +20,13 @@ if __name__ == '__main__':
         sys.exit(2)
     command = sys.argv[1]
     if command == 'start':
-        cluster.run(replicas = 0,
-            transport = 'tcp',
-            share_hosts = True,
+        cluster.run(
+            master_args = '--totalMasterMemory 8000 --segmentFrames 2500',
+            num_servers = 4,
+            timeout = 250,
+            replicas = 1,
+            transport = 'fast+udp',
+            disjunct = True,
             clean_up = False,
         )
     elif command == 'stop':
